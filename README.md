@@ -1,4 +1,5 @@
-WebGIS-TIFF-Viewe
+WebGIS-TIFF-Viewer
+
 WebGIS-TIFF-Viewer is an interactive web application that allows users to upload and visualize geospatial TIFF images on a MapLibre map. The application supports switching between different basemaps, adjusting the opacity of the uploaded images, and provides information about the image location and weather conditions.
 
 Features
