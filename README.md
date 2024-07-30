@@ -50,21 +50,4 @@ Adjust the image opacity using the slider.
 View distance and weather information related to the image location.
 Toggle the visibility of the uploaded image layer using the layer control.
 File Structure
-php
-Copy code
-GeoMapVisualizer/
-│
-├── app.py                   # Flask backend for handling uploads and processing images
-├── static/
-│   ├── index.html           # Main HTML file
-│   ├── css/
-│   │   └── styles.css       # CSS styles
-│   ├── js/
-│   │   ├── script.js        # Main JavaScript file
-│   │   └── basemap.js       # JavaScript for handling basemap switching
-└── uploads/                 # Directory to store uploaded images
-Contributing
-Contributions are welcome! Please fork the repository and create a pull request with your changes.
 
-License
-This project is licensed under the MIT License.
