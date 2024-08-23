@@ -1,0 +1,585 @@
+:root {
+    --bg-color: #1a1a2e;
+    --text-color: #e0e0e0;
+    --primary-color: #6a4c93;
+    --secondary-color: #8ac6d1;
+    --accent-color: #ffbd69;
+    --sidebar-width: 20vw; /* 20% of viewport width */
+    --sidebar-min-width: 3vw;
+    --sidebar-max-width: 20vw;
+    --collapsed-width: 3vw; /* Use vw instead of px */
+    --toggle-btn-size: 2vw; /* Use vw to ensure the button scales */
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    width: 100%;
+}
+
+.sidebar {
+    width: clamp(var(--sidebar-min-width), var(--sidebar-width), var(--sidebar-max-width));
+    transition: width 0.3s ease;
+    overflow-x: hidden;
+    position: relative;
+}
+
+.resizer {
+    width: 5px; /* Width of the draggable area */
+    cursor: ew-resize; /* Cursor indicating the resizing functionality */
+    background-color: #252556; /* Visible color for the resizer */
+    z-index: 1000;
+}
+  
+.sidebar.collapsed {
+    width: var(--collapsed-width);
+}
+
+.toggle-btn {
+    position: absolute;
+    right: 0%; /* Position the button on the left */
+    top: 0vh;
+    background: var(--primary-color);
+    border: none;
+    color: white;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 5px 0 0 5px; /* Adjust the border-radius to fit on the left side */
+    z-index: 100001;
+}
+
+#logo-link {
+    position: absolute;
+    top: 2vh; /* Use viewport height for top positioning */
+    left: 2vh; /* Use viewport height for left positioning */
+    z-index: 1000; /* Ensures the logo is above other elements */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar.collapsed #logo-link {
+    left: 1vw; /* Move logo closer to the left in collapsed state */
+}
+
+
+.arrow {
+    display: inline-block;
+    transition: transform 0.3s ease;
+}
+  
+.sidebar.collapsed .arrow {
+    transform: rotate(180deg);
+}
+
+.map-container {
+    width: calc(100% - clamp(var(--sidebar-min-width), var(--sidebar-width), var(--sidebar-max-width)));
+    margin-left: clamp(var(--sidebar-min-width), var(--sidebar-width), var(--sidebar-max-width));
+    transition: width 0.3s ease, margin-left 0.3s ease;
+    flex: 1;
+    height: 100%;
+    transition: margin-left 0.3s ease;
+    position:relative;
+}
+
+.sidebar.collapsed + .map-container {
+    margin-left: var(--collapsed-width); /* Adjust to match the collapsed width of the sidebar */
+    width: calc(100% - var(--collapsed-width));
+}
+
+.toolbar {
+    position: absolute;
+    top: 50%;
+    left: 5px;
+    transform: translateY(-50%);
+    background-color: #1a1a2e;
+    border-radius: 8px;
+    padding: 10px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;  /* Change to vertical stack */
+    align-items: center;  /* Center align items */
+}
+
+.p-1 {
+    padding: 0.25rem;
+}
+
+.hover\:bg-gray-200:hover {
+    background-color: #67686a;
+}
+
+.tool-button {
+    position: relative;
+    background-color: #ffffff;
+    border: none;
+    margin: 5px 0;
+    cursor: pointer;
+    border-radius: 5px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tool-button:hover::after {
+    content: attr(title);
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    transform: translateX(10px) translateY(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+    font-size: 12px;
+    z-index: 1000;
+}
+
+.tool-button:hover::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    transform: translateX(2px) translateY(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent #333 transparent transparent;
+    z-index: 1000;
+}
+
+
+.tool-button:hover {
+    background-color: #ddd;
+}
+
+/*.tool-button svg {
+    display: block;
+    width: 24px;
+    height: 24px;
+    margin: auto;
+}*/
+
+#colorPicker {
+    width: 40px;
+    height: 40px;
+    border: none;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+svg {
+    display: block;
+    width: 24px;
+    height: 24px;
+    margin: auto;
+}
+
+
+.container .map-container {
+    margin-left: 0;
+}
+
+.sidebar.collapsed + .map-container {
+    margin-left: 60px; /* Adjust to match the collapsed width of the sidebar */
+}
+
+header {
+    margin-bottom: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: var(--secondary-color);
+    font-weight: 700;
+    font-size: 2.5rem;
+    margin: 0;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+
+
+#logo {
+  width: 50px; /* Adjust size as needed */
+  height: auto;
+}
+
+
+.file-upload {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.file-selection {
+    display: flex;
+    align-items: center;
+}
+
+
+.file-info {
+    display: flex;
+    align-items: center;
+}
+
+#thumbnailPreview {
+    margin-top: 10px;
+    max-width: 100px;
+    max-height: 100px;
+    overflow: hidden;
+    border: 2px solid var(--secondary-color);
+    border-radius: 5px;
+}
+
+#thumbnailPreview canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+#fileInput {
+    display: none;
+}
+
+.import-icon {
+    display: flex;
+    align-items: center;
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-size: 14px;
+}
+
+.import-icon:hover {
+    background-color: #7d5ba6;
+}
+
+.import-icon svg {
+    margin-right: 8px;
+}
+
+#fileName {
+    margin: 0 15px;
+    font-size: 14px;
+}
+
+.arrow-button {
+    display: flex;
+    align-items: center;
+    background-color: var(--secondary-color);
+    color: var(--bg-color);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.arrow-button:hover {
+    background-color: #9fd3dd;
+}
+
+.arrow-button svg {
+    margin-right: 8px;
+}
+
+.results {
+    text-align: center;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.layer-item {
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.layer-name {
+    margin-right: 10px;
+}
+
+.zoom-link {
+    font-size: 0.8em;
+    text-decoration: none;
+    color: #0066cc;
+}
+
+.zoom-link:hover {
+    text-decoration: underline;
+}
+
+
+#map {
+    width: 100%;
+    height: 100%;
+    margin: 0 auto;
+    border-radius: 0px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure the coordinate info is visible and correctly positioned in the map container */
+#coordinate-info {
+    position: absolute; 
+    bottom: 0px; 
+    left: 50%; 
+    background-color: #1a1a2e; 
+    padding: 5px; 
+    border-radius: 3px; 
+    font-size: 12px; 
+    color: #ffffff; 
+    z-index: 1000; /* Ensure it appears above the map elements */
+}
+
+/* MapLibre controls */
+.maplibregl-ctrl-top-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.maplibregl-ctrl-top-left {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.maplibregl-ctrl-top-left .maplibregl-ctrl {
+    margin: 0px 0 0 5px;
+}
+
+.maplibregl-ctrl-bottom-right {
+    display: flex;
+    flex-direction: column; /* Stack controls vertically */
+    align-items: flex-end; /* Align controls to the right */
+    margin-right: 10px; /* Adjust the margin from the right edge */
+    margin-bottom: 10px; /* Adjust the margin from the bottom edge */
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl {
+    margin: 5px 0; /* Add vertical space between controls */
+}
+
+
+
+
+.layer-control {
+    background: var(--bg-color);
+    color: var(--text-color);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px #00000033;
+    margin-bottom: 10px;
+    z-index: 1000;
+    pointer-events: auto;
+}
+
+/* Basemaps */
+.maplibregl-ctrl-basemaps {
+    display: flex;
+    flex-direction: row;
+    pointer-events: auto;
+    bottom: -5px;
+    position: relative;
+}
+
+.maplibregl-ctrl-basemaps .basemap {
+    width: 64px;
+    height: 64px;
+    margin: 2px;
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.maplibregl-ctrl-basemaps .basemap.active {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px var(--accent-color);
+}
+.maplibregl-ctrl-basemaps.closed .basemap {
+  display: none;
+}
+.maplibregl-ctrl-basemaps.closed .basemap.active {
+  display: block;
+  border: 2px solid #ccc;
+}
+
+.maplibregl-ctrl-top-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+@media (max-width: 768px) {
+    #map {
+        width: 100%;
+        height: calc(90vh - 250px);
+    }
+
+    .file-upload {
+        flex-direction: column;
+    }
+
+    .import-icon, .arrow-button {
+        margin: 10px 0;
+    }
+}
+
+
+/* Add these styles to your existing CSS */
+
+.file-upload-container {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    margin-top: 5vh;
+    
+}
+
+.upload-methods {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.upload-btn {
+    display: flex;
+    align-items: center;
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-size: 14px;
+}
+
+.upload-btn:hover {
+    background-color: #7d5ba6;
+}
+
+.upload-btn svg {
+    margin-right: 8px;
+}
+
+.url-input {
+    display: flex;
+    align-items: center;
+}
+
+.url-input input {
+    padding: 8px;
+    border-radius: 5px 0 0 5px;
+    border: 1px solid var(--secondary-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.url-input button {
+    border-radius: 0 5px 5px 0;
+}
+
+.drop-zone {
+    border: 2px dashed var(--secondary-color);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    transition: background-color 0.3s ease;
+}
+
+.drop-zone.drag-over {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.file-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+}
+
+#fileName {
+    font-size: 14px;
+}
+
+.loading-spinner {
+    text-align: center;
+    font-size: 18px;
+    color: #555;
+}
+
+.menu-container {
+    position: relative;
+    display: inline-block;
+}
+
+.menu-button {
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 5px;
+}
+
+.menu-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: var(--primary-color);
+    min-width: 120px;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+    min-width: 150px;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+.menu-content a {
+    color: var(--text-color);
+    padding: 8px 16px;
+    text-decoration: none;
+    display: block;
+}
+
+.menu-content a:hover {
+    background-color: var(--primary-color);
+}
+
+.menu-content.visible {
+    display: block;
+}
+
+.opacity-control {
+    margin-top: 10px;
+}
+
