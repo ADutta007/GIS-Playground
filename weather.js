@@ -1,7 +1,7 @@
 function fetchWeatherData(lat, lon) {
 
     
-    const apiKey = '2104d9d37c8a23ad320028a54d513d8a'; // Replace with your OpenWeatherMap API key
+    const apiKey = 'Replace with your OpenWeatherMap API key'; // Replace with your OpenWeatherMap API key
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
 
     fetch(url)
