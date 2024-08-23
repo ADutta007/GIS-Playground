@@ -1,145 +1,164 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Interactive Map with MapLibre</title>
+    <title>GeoMango</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" />
+    <link href="https://unpkg.com/mapbox-gl-draw/dist/mapbox-gl-draw.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 900px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #007bff;
-        }
-        .upload {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            margin-bottom: 20px;
-        }
-        .upload input[type="file"] {
-            margin: 10px 0;
-        }
-        .upload button {
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .upload button:hover {
-            background-color: #0056b3;
-        }
-        .results {
-            margin-top: 20px;
-            text-align: center;
-        }
-        #map {
-            height: 500px;
-            width: 100%;
-            border-radius: 8px;
-            overflow: hidden;
-        }
+    <link rel="stylesheet" href="./assets/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="./assets/logo/logo.ico">
+    <link rel="stylesheet" href="https://unpkg.com/@maplibre/maplibre-gl-geocoder@1.5.0/dist/maplibre-gl-geocoder.css"/>
 
-        .maplibregl-ctrl-top-right {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-        .opacity-control {
-            background: #fff;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
-            z-index: 1000;
-            pointer-events: auto;/* Ensure this is above the map */
-        }
-        .layer-control {
-            background: #fff;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            z-index: 1000; /* Ensure this is above the map */
-            pointer-events: auto;
-        }
-        .maplibregl-ctrl-basemaps {
-          display: flex;
-          flex-direction: row;
-          pointer-events: auto;
-          bottom: 15px;
-          position: relative;
-        }
-        .maplibregl-ctrl-basemaps.reverse {
-          flex-direction: row-reverse;
-        }
-        .maplibregl-ctrl-basemaps.column {
-          flex-direction: column;
-        }
-        .maplibregl-ctrl-basemaps.column.reverse {
-          flex-direction: column-reverse;
-        }
-        .maplibregl-ctrl-basemaps .basemap {
-          width: 64px;
-          height: 64px;
-          margin: 2px;
-          border: 2px solid #ccc;
-          box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
-          cursor: pointer;
-        }
-        .maplibregl-ctrl-basemaps .basemap.active {
-          border-color: orange;
-          box-shadow: 2px 2px 4px #000;
-        }
-        .maplibregl-ctrl-basemaps.closed .basemap {
-          display: none;
-        }
-        .maplibregl-ctrl-basemaps.closed .basemap.active {
-          display: block;
-          border: 2px solid #ccc;
-        }
-
-        .maplibregl-ctrl-top-right {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-
-
-
-    </style>
 </head>
 <body>
     <div class="container">
-        <h1><i class="fas fa-globe"></i> Interactive Map with MapLibre</h1>
-        <div class="upload">
-            <input type="file" id="fileInput" class="upload">
-            <button id="uploadBtn"><i class="fas fa-upload"></i> Upload</button>
-        </div>
-        <div class="results" id="results"></div>
-        <div id="map"></div>
+        <div id="sidebar" class="sidebar">
+            <button id="toggleSidebar" class="toggle-btn">
+                <span class="arrow">←</span>
+              </button>
+            <header>
+                <a href="/" id="logo-link">
+                    <img src="./assets/logo/logo.webp" alt="Logo" id="logo">
+                </a>
+            </header>
+
+            <main>
+                <div class="file-upload-container">
+                    <div class="upload-methods">
+                        <button id="chooseFileBtn" class="upload-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path>
+                            </svg>
+                            
+                        </button>
+                        <input type="file" id="fileInput" accept=".tiff,.tif" style="display: none;">
+
+                        <div class="url-input">
+                            <input type="text" id="urlInput" placeholder="Paste TIFF URL here">
+                            <button id="loadUrlBtn" class="upload-btn">Load URL</button>
+                        </div>
+                    </div>
+
+                    <div id="dropZone" class="drop-zone">
+                        <p>Drag & Drop TIFF file here</p>
+                    </div>
+
+                    <div id="fileInfo" class="file-info" style="display: none;">
+                        <span id="fileName"></span>
+                        <button id="uploadBtn" class="upload-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"></path>
+                            </svg>
+                            Upload
+                        </button>
+                        <button id="classifyBtn" class="arrow-button">
+                            Classify
+                        </button>
+
+                    </div>
+                </div>
+
+                <div id="results" class="results"></div>
+            </div>
+
+        <div class="resizer"></div> <!-- This is the resizer -->    
+
+        <div class="map-container">
+            <div id="map"></div>
+
+            <div id="coordinate-info">
+                <span id="info-label">Position:</span> 
+                <span id="info"></span>
+            </div>
+            <div class="toolbar">
+                <input type="color" id="colorPicker" value="#ff0000" style="margin-bottom: 10px;">
+                <input type="file" id="import-geojson" accept=".geojson,application/json" style="display: none;">
+                <button id="import-features" class="p-1 hover:bg-gray-200" title="Import GeoJSON">
+                    <!-- Import Icon SVG -->
+                    <svg class="h-6 w-6" fill="#000000" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 21V9m0 0l-3.5 3.5m7 0L12 9m-7 5v4a2 2 0 002 2h10a2 2 0 002-2v-4m-14-5V5a2 2 0 012-2h10a2 2 0 012 2v5" stroke="#000000" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                
+
+                <button id="draw-point" class="p-1 hover:bg-gray-200" title="Draw Point">
+                    <svg class="h-6 w-6" fill="#000000" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+                        <g id="SVGRepo_iconCarrier">
+                            <circle cx="12" cy="12" r="10"/>
+                        </g>
+                    </svg>
+                </button>
+            
+                <button id="draw-line" class="p-1 hover:bg-gray-200" title="Draw Line">
+                    <svg class="h-6 w-6" fill="#000000" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+                        <g id="SVGRepo_iconCarrier">
+                            <line x1="4" y1="12" x2="20" y2="12" stroke="#000000" stroke-width="2"/>
+                        </g>
+                    </svg>
+                </button>
+            
+                <!--  <button id="draw-rectangle" class="p-1 hover:bg-gray-200">
+                    <svg class="h-6 w-6" fill="#000000" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+                        <g id="SVGRepo_iconCarrier">
+                            <rect x="4" y="4" width="16" height="16" stroke="#000000" stroke-width="2" fill="none"/>
+                        </g>
+                    </svg>
+                </button> -->
+            
+                <button id="draw-polygon" class="p-1 hover:bg-gray-200" title="Draw Polygon">
+                    <svg class="h-6 w-6" fill="#000000" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+                        <g id="SVGRepo_iconCarrier">
+                            <polygon points="12,2 19,8 15,20 9,20 5,8" stroke="#000000" stroke-width="2" fill="none"/>
+                        </g>
+                    </svg>
+                </button>
+
+                <button id="export-features" class="p-1 hover:bg-gray-200" title="Export as GeoJSON">
+                    <!-- Export Icon SVG -->
+                    <svg class="icon" fill="#000000" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 3v12m0 0l3.5-3.5m-7 0L12 15m7 0v4a2 2 0 01-2 2H7a2 2 0 01-2-2v-4m14-5V5a2 2 0 00-2-2H7a2 2 0 00-2 2v5" stroke="#000000" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+
+                <button id="delete-features" class="p-1 hover:bg-gray-200" title="Delete Features">
+                    <svg class="icon" fill="#000000" viewBox="0 0 24 24">
+                        <path d="M3 6l3 12a3 3 0 003 3h6a3 3 0 003-3l3-12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 6h16M10 11v6M14 11v6M6 6l1-3h10l1 3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                
+
+            </div>
+            
+            
+            
+        </div> 
+                     
+        </main>
     </div>
 
     <script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script>
-    <script src="/assets/basemap.js"></script>
-    <script src="/assets/script.js"></script>
+    <script src="https://unpkg.com/mapbox-gl-draw/dist/mapbox-gl-draw.js"></script>
+    <script src="https://unpkg.com/@maplibre/maplibre-gl-geocoder@1.5.0/dist/maplibre-gl-geocoder.min.js"></script>
+    <script src="https://unpkg.com/@mapbox/shp-write@latest/shpwrite.js"></script>
+    <script src="https://unpkg.com/proj4@latest"></script>
+    <script src="https://unpkg.com/@turf/turf"></script> <!-- Useful for geo operations -->
+    <script src="./assets/basemap.js"></script>
+    <script src="./assets/geocoder.js"></script>
+    <script src="./assets/weather.js"></script>
+    <script src="./assets/script.js"></script>
+    
+
 </body>
 </html>
