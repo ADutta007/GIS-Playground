@@ -1,15 +1,15 @@
 const baseMaps = {
   "STREETS": {
     img: "https://cloud.maptiler.com/static/img/maps/streets.png",
-    style: 'https://api.maptiler.com/maps/streets/style.json?key=yorpPEc8gb8XZeqiYvJh'
+    style: 'https://api.maptiler.com/maps/streets/style.json?key=Use your Own API Key'
   },
   "WINTER": {
     img: "https://cloud.maptiler.com/static/img/maps/winter.png",
-    style: 'https://api.maptiler.com/maps/winter/style.json?key=yorpPEc8gb8XZeqiYvJh'
+    style: 'https://api.maptiler.com/maps/winter/style.json?key=Use your Own API Key'
   },
   "HYBRID": {
     img: "https://cloud.maptiler.com/static/img/maps/hybrid.png",
-    style: 'https://api.maptiler.com/maps/hybrid/style.json?key=yorpPEc8gb8XZeqiYvJh'
+    style: 'https://api.maptiler.com/maps/hybrid/style.json?key=Use your Own API Key'
   }
 };
 
