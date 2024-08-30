@@ -1,6 +1,3 @@
-
-
-
 function initializeMapboxDraw() {
     const features = draw ? draw.getAll() : { features: [] };
     if (!draw) {
