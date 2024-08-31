@@ -1,116 +1,276 @@
-from flask import Flask, request, jsonify, send_file, make_response
-from flask_cors import CORS
+from flask import Flask, request, jsonify
+import boto3
 import os
-from werkzeug.utils import secure_filename
+from osgeo import gdal
 import rasterio
-from pyproj import Transformer
-import logging
+from rasterio.warp import calculate_default_transform, reproject, Resampling, transform_bounds
+from rasterio.transform import from_bounds
+import traceback
+import subprocess
+import json
 from PIL import Image
+import uuid
+import numpy as np
 
-app = Flask(__name__, static_url_path='/assets', static_folder='assets')
-CORS(app, resources={r"/*": {"origins": "*"}})
+app = Flask(__name__)
 
-# Local upload folder path (relative to PythonAnywhere environment)
-LOCAL_UPLOAD_FOLDER = '/home/dutta007/mysite/uploads'
+S3_BUCKET = "dutta007bucket"
+AWS_REGION = "eu-west-2"
+s3_client = boto3.client('s3', region_name=AWS_REGION)
 
-# Create local uploads folder if not exists
-os.makedirs(LOCAL_UPLOAD_FOLDER, exist_ok=True)
+def download_file(s3_client, bucket, s3_key, local_path):
+    s3_client.download_file(bucket, s3_key, local_path)
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
+def upload_file(s3_client, local_path, bucket, s3_key, content_type=None):
+    extra_args = {'ContentType': content_type} if content_type else {}
+    s3_client.upload_file(local_path, bucket, s3_key, ExtraArgs=extra_args)
 
-@app.route('/')
-def index():
-    return send_file(os.path.join('assets', 'index.html'))
+def convert_tiff_to_png(local_tiff_path, local_png_path):
+    with rasterio.open(local_tiff_path) as src:
+        bounds = transform_bounds(src.crs, 'EPSG:4326', *src.bounds)
+        bounds_dict = {'left': bounds[0], 'bottom': bounds[1], 'right': bounds[2], 'top': bounds[3]}
+        transform, width, height = calculate_default_transform(src.crs, 'EPSG:4326', src.width, src.height, *src.bounds)
+        kwargs = src.meta.copy()
+        kwargs.update({
+            'crs': 'EPSG:4326',
+            'transform': transform,
+            'width': width,
+            'height': height,
+            'driver': 'PNG',
+            'compress': 'DEFLATE',  # Use DEFLATE compression
+            'zlevel': 9  # Maximum compression level
+        })
+        with rasterio.open(local_png_path, 'w', **kwargs) as dst:
+            for i in range(1, src.count + 1):
+                reproject(
+                    source=rasterio.band(src, i),
+                    destination=rasterio.band(dst, i),
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=transform,
+                    dst_crs='EPSG:4326',
+                    resampling=Resampling.nearest
+                )
+    return bounds_dict
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
+def verify_png(local_png_path):
     try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file part in the request'})
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No selected file'})
-        
-        if file:
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(LOCAL_UPLOAD_FOLDER, filename)
-            file.save(filepath)
-            
-            # Process the image to get its bounds and convert to PNG
-            bounds = process_image(filepath)
-            png_filepath = convert_to_png(filepath)
-            png_filename = os.path.basename(png_filepath)
-            png_file_url = f'/uploads/{png_filename}'
-            
-            logging.debug(f'Filepath: {filepath}')
-            logging.debug(f'Bounds: {bounds}')
-            logging.debug(f'PNG File URL: {png_file_url}')
-            
-            return jsonify({'filepath': png_file_url, 'bounds': bounds})
+        with Image.open(local_png_path) as img:
+            img.verify()
+        print("PNG file is valid")
     except Exception as e:
-        logging.error(f'Error: {e}')
-        return jsonify({'error': str(e)})
+        print(f"PNG file is invalid: {str(e)}")
+        raise
 
-@app.route('/uploads/<filename>', methods=['GET'])
-def download_file(filename):
+def clean_up(files):
+    for file in files:
+        try:
+            os.remove(file)
+        except Exception as e:
+            print(f"Error removing file {file}: {str(e)}")
+
+def extract_tiff_properties(input_tiff_path):
+    dataset = gdal.Open(input_tiff_path)
+    if not dataset:
+        raise ValueError("Unable to open TIFF file.")
+    
+    driver = dataset.GetDriver().ShortName
+    compression = dataset.GetMetadataItem('COMPRESSION') or 'UNKNOWN'
+    photometric = dataset.GetMetadataItem('PHOTOMETRIC') or 'UNKNOWN'
+    interleave = dataset.GetMetadataItem('INTERLEAVE') or 'UNKNOWN'
+    tiled = dataset.GetMetadataItem('TILED') or 'NO'
+    bits_per_sample = dataset.GetRasterBand(1).GetMetadataItem('NBITS') or 'UNKNOWN'
+    
+    dataset = None  # Close the dataset
+    return {
+        "driver": driver,
+        "compression": compression,
+        "photometric": photometric,
+        "interleave": interleave,
+        "tiled": tiled,
+        "bits_per_sample": bits_per_sample
+    }
+
+def convert_tiff_with_default_compression(input_tiff_path, output_tiff_path, properties):
+    creation_options = []
+    
+    if properties['compression'] == 'JPEG':
+        creation_options.append('COMPRESS=JPEG')
+        creation_options.append('PHOTOMETRIC=YCBCR')
+        creation_options.append('JPEG_QUALITY=85')  # Adjust as needed
+    else:
+        creation_options.append('COMPRESS=LZW')  # Default to LZW compression
+
+    if properties['tiled'] == 'YES':
+        creation_options.append('TILED=YES')
+    else:
+        creation_options.append('TILED=NO')
+
+    gdal.Translate(
+        output_tiff_path,
+        input_tiff_path,
+        format='GTiff',
+        creationOptions=creation_options
+    )
+
+@app.route('/gdal_Test', methods=['POST'])
+def gdal_test():
+    data = request.json
+    s3_key = data.get('s3_key')  # The S3 key of the TIFF image
+    if not s3_key:
+        return jsonify({'error': 'Missing s3_key in request'}), 400
+
     try:
-        local_filepath = os.path.join(LOCAL_UPLOAD_FOLDER, filename)
-        return send_file(local_filepath, as_attachment=True)
+        file_name = os.path.basename(s3_key)
+        local_tiff_path = f'/tmp/{file_name}'
+
+        # Download the TIFF file from S3
+        download_file(s3_client, S3_BUCKET, s3_key, local_tiff_path)
+
+        # Extract TIFF properties
+        tiff_properties = extract_tiff_properties(local_tiff_path)
+        print("Extracted Properties:", tiff_properties)
+
+        # Process the TIFF file with default or determined compression
+        output_tiff_path = f'/tmp/{os.path.splitext(file_name)[0]}_output.tif'
+        convert_tiff_with_default_compression(local_tiff_path, output_tiff_path, tiff_properties)
+
+        # Upload the processed file back to S3
+        output_s3_key = f'gdal-output/{os.path.basename(output_tiff_path)}'
+        upload_file(s3_client, output_tiff_path, S3_BUCKET, output_s3_key, 'image/tiff')
+
+        # Clean up
+        clean_up([local_tiff_path, output_tiff_path])
+
+        # Generate a URL that doesn't require signing
+        output_url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{output_s3_key}"
+
+        return jsonify({'output_url': output_url})
+
     except Exception as e:
-        logging.error(f'File download error: {e}')
-        return jsonify({'error': 'File not found'})
+        # Handle errors
+        error_message = str(e)
+        stack_trace = traceback.format_exc()
+        print(f"Error: {error_message}")
+        print(f"Stack trace: {stack_trace}")
+        return jsonify({'error': error_message, 'stack_trace': stack_trace}), 500
 
-@app.route('/public/satellite.tif', methods=['GET'])
-def serve_tif():
+
+@app.route('/process-image', methods=['POST'])
+def process_image():
+    data = request.json
+    s3_key = data.get('s3_key')  # The S3 key includes the UUID
+    if not s3_key:
+        return jsonify({'error': 'Missing s3_key in request'}), 400
+
     try:
-        return send_file(os.path.join(LOCAL_UPLOAD_FOLDER, 'satellite.tif'), as_attachment=False)
+        file_name = os.path.basename(s3_key)
+
+        # No need to extract the UUID again; use the existing base name
+        base_file_name = file_name.rsplit('.', 1)[0]  # This includes the UUID
+
+        local_tiff_path = f'/tmp/{file_name}'
+        png_filename = f"{base_file_name}.png"  # No need to append the UUID again
+        local_png_path = f'/tmp/{png_filename}'
+
+        # Ensure the /tmp directory is used correctly without subdirectories
+        if not os.path.exists('/tmp'):
+            os.makedirs('/tmp')
+
+        # Download the TIFF file from S3
+        download_file(s3_client, S3_BUCKET, s3_key, local_tiff_path)
+
+        # Convert TIFF to PNG
+        bounds_dict = convert_tiff_to_png(local_tiff_path, local_png_path)
+
+        # Verify PNG integrity
+        verify_png(local_png_path)
+
+        # Upload PNG to S3
+        png_s3_key = f'png-export/{png_filename}'
+        upload_file(s3_client, local_png_path, S3_BUCKET, png_s3_key, 'image/png')
+
+        # Verify S3 upload
+        s3_client.head_object(Bucket=S3_BUCKET, Key=png_s3_key)
+        print(f"File {png_s3_key} uploaded successfully to S3")
+
+        # Generate a URL that doesn't require signing
+        png_url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{png_s3_key}"
+
+        # Save bounds to S3 as JSON, with the same UUID
+        bounds_key = f'png-export/{base_file_name}_bounds.json'
+        s3_client.put_object(Bucket=S3_BUCKET, Key=bounds_key, Body=json.dumps(bounds_dict))
+
+        clean_up([local_tiff_path, local_png_path])
+        print(bounds_dict)
+
+        return jsonify({'png_url': png_url, 'bounds': bounds_dict})
+
     except Exception as e:
-        logging.error(f'File download error: {e}')
-        return jsonify({'error': 'File not found'})
+        error_message = str(e)
+        stack_trace = traceback.format_exc()
+        print(f"Error: {error_message}")
+        print(f"Stack trace: {stack_trace}")
+        return jsonify({'error': error_message, 'stack_trace': stack_trace}), 500
 
-def process_image(image_path):
+
+
+@app.route('/convert-png-to-tif', methods=['POST'])
+def convert_png_to_tif():
+    data = request.json
+    png_s3_key = data.get('s3_key')
+    if not png_s3_key:
+        return jsonify({'error': 'Missing s3_key in request'}), 400
+
     try:
-        # Read the TIFF file to get its bounds
-        with rasterio.open(image_path) as src:
-            bounds = src.bounds
-            
-            # Convert coordinates from the source CRS to EPSG:4326
-            transformer = Transformer.from_crs(src.crs, "EPSG:4326", always_xy=True)
-            bottom_left = transformer.transform(bounds.left, bounds.bottom)
-            top_right = transformer.transform(bounds.right, bounds.top)
-            
-            # Return bounds in [lng, lat] format
-            bounds_4326 = {
-                "left": bottom_left[0],
-                "bottom": bottom_left[1],
-                "right": top_right[0],
-                "top": top_right[1]
+        png_file_name = os.path.basename(png_s3_key)
+        tiff_file_name = png_file_name.rsplit('.', 1)[0] + '.tif'
+        local_png_path = f'/tmp/{png_file_name}'
+        local_tiff_path = f'/tmp/{tiff_file_name}'
+
+        # Download the PNG file from S3
+        download_file(s3_client, S3_BUCKET, png_s3_key, local_png_path)
+
+        # Fetch bounds from corresponding JSON file
+        bounds_key = png_s3_key.replace('classified.png', 'bounds.json')
+        bounds_obj = s3_client.get_object(Bucket=S3_BUCKET, Key=bounds_key)
+        bounds = json.loads(bounds_obj['Body'].read().decode('utf-8'))
+
+        # Convert PNG to TIFF with geospatial metadata
+        with Image.open(local_png_path) as img:
+            img = img.convert('RGBA')
+            transform = from_bounds(bounds['left'], bounds['bottom'], bounds['right'], bounds['top'], img.width, img.height)
+            meta = {
+                'driver': 'GTiff',
+                'dtype': 'uint8',
+                'count': 4,
+                'height': img.height,
+                'width': img.width,
+                'crs': 'EPSG:4326',
+                'transform': transform,
+                'compress': 'LZW'
             }
-            return bounds_4326
-    except Exception as e:
-        logging.error(f'Error processing image: {e}')
-        raise
+            with rasterio.open(local_tiff_path, 'w', **meta) as dst:
+                for i, band in enumerate(img.split(), start=1):
+                    dst.write(np.array(band), i)
 
-def convert_to_png(tiff_path):
-    try:
-        with rasterio.open(tiff_path) as src:
-            data = src.read()
-            profile = src.profile
-            
-            png_path = tiff_path.replace('.tif', '.png')
-            with rasterio.open(png_path, 'w', driver='PNG', width=profile['width'], height=profile['height'], count=profile['count'], dtype=data.dtype) as dst:
-                dst.write(data)
-        
-        # Rotate image if needed and save it
-        img = Image.open(png_path)
-        img = img.rotate(0, expand=True)  # Adjust rotation as needed
-        img.save(png_path)
-        
-        return png_path
-    except Exception as e:
-        logging.error(f'Error converting to PNG: {e}')
-        raise
+        # Upload TIFF to S3
+        tiff_s3_key = f'tif-export/{tiff_file_name}'
+        upload_file(s3_client, local_tiff_path, S3_BUCKET, tiff_s3_key, 'image/tiff')
 
-# Note: Do not include app.run() as it is not needed in PythonAnywhere
+        # Generate a URL for the TIFF file
+        tiff_url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{tiff_s3_key}"
+
+        clean_up([local_png_path, local_tiff_path])
+
+        return jsonify({'tiff_url': tiff_url})
+
+    except Exception as e:
+        error_message = str(e)
+        stack_trace = traceback.format_exc()
+        print(f"Error: {error_message}")
+        print(f"Stack trace: {stack_trace}")
+        return jsonify({'error': error_message, 'stack_trace': stack_trace}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
